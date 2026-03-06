@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IAlingo - Aprenda Inglês com IA</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- HEADER -->
+        <header>
+            <h1>🗣️ IAlingo</h1>
+            <p>Aprenda inglês conversando com IA</p>
+        </header>
+
+        <!-- ÁREA DE LOGIN/CADASTRO -->
+        <div id="auth-area" class="auth-area">
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showTab('login')">Login</button>
+                <button class="tab-btn" onclick="showTab('cadastro')">Cadastro</button>
+            </div>
+            
+            <!-- LOGIN FORM -->
+            <div id="login-form" class="form active">
+                <h3>Entrar</h3>
+                <input type="email" id="login-email" placeholder="Email" required>
+                <input type="password" id="login-senha" placeholder="Senha" required>
+                <button onclick="login()">Entrar</button>
+                <p id="login-error" class="error"></p>
+            </div>
+            
+            <!-- CADASTRO FORM -->
+            <div id="cadastro-form" class="form">
+                <h3>Criar Conta</h3>
+                <input type="text" id="cadastro-nome" placeholder="Nome completo" required>
+                <input type="email" id="cadastro-email" placeholder="Email" required>
+                <input type="password" id="cadastro-senha" placeholder="Senha (mínimo 6 caracteres)" required>
+                <button onclick="cadastrar()">Cadastrar</button>
+                <p id="cadastro-error" class="error"></p>
+                <p id="cadastro-success" class="success"></p>
+            </div>
+        </div>
+
+        <!-- ÁREA PRINCIPAL (APÓS LOGIN) -->
+        <div id="main-area" class="main-area" style="display: none;">
+            <!-- PERFIL -->
+            <div class="perfil-card">
+                <h3>👤 Perfil</h3>
+                <p id="perfil-nome"></p>
+                <p id="perfil-email"></p>
+                <p id="perfil-nivel"></p>
+                <button onclick="logout()" class="logout-btn">Sair</button>
+            </div>
+
+            <!-- CONTEXTOS -->
+            <div class="contextos-card">
+                <h3>📋 Contextos Disponíveis</h3>
+                <select id="contexto-select">
+                    <option value="">Carregando...</option>
+                </select>
+                <button onclick="iniciarConversa()" class="btn-primary">Iniciar Conversa</button>
+            </div>
+
+            <!-- CONVERSA ATUAL -->
+            <div id="conversa-area" class="conversa-card" style="display: none;">
+                <h3>💬 Conversa Atual <span id="contexto-atual"></span></h3>
+                <div id="mensagens-container" class="mensagens"></div>
+                <div class="input-area">
+                    <input type="text" id="mensagem-input" placeholder="Digite sua mensagem..." onkeypress="if(event.key==='Enter') enviarMensagem()">
+                    <button onclick="enviarMensagem()">Enviar</button>
+                    <button onclick="finalizarConversa()" class="btn-secondary">Finalizar</button>
+                </div>
+            </div>
+
+            <!-- FEEDBACK -->
+            <div id="feedback-area" class="feedback-card" style="display: none;">
+                <h3>📊 Feedback da Conversa</h3>
+                <p><strong>Pontos positivos:</strong> <span id="feedback-positivos"></span></p>
+                <p><strong>Pontos a melhorar:</strong> <span id="feedback-melhoria"></span></p>
+                <p><strong>Nota de fluência:</strong> <span id="feedback-nota"></span>/10</p>
+            </div>
+
+            <!-- HISTÓRICO -->
+            <div class="historico-card">
+                <h3>📜 Histórico de Conversas</h3>
+                <button onclick="carregarHistorico()" class="btn-secondary">Atualizar Histórico</button>
+                <div id="historico-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
