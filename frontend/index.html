@@ -4,88 +4,169 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IAlingo - Aprenda Inglês com IA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+    <!-- BG BLOBS -->
+    <div class="bg-blob blob-1"></div>
+    <div class="bg-blob blob-2"></div>
+    <div class="bg-blob blob-3"></div>
+
     <div class="container">
+
         <!-- HEADER -->
         <header>
-            <h1>🗣️ IAlingo</h1>
-            <p>Aprenda inglês conversando com IA</p>
+            <div class="logo">
+                <span class="logo-icon">🗣</span>
+                <span class="logo-text">IA<em>lingo</em></span>
+            </div>
+            <p class="tagline">Fale. Erre. Evolua.</p>
         </header>
 
         <!-- ÁREA DE LOGIN/CADASTRO -->
         <div id="auth-area" class="auth-area">
-            <div class="tabs">
-                <button class="tab-btn active" onclick="showTab('login')">Login</button>
-                <button class="tab-btn" onclick="showTab('cadastro')">Cadastro</button>
-            </div>
-            
-            <!-- LOGIN FORM -->
-            <div id="login-form" class="form active">
-                <h3>Entrar</h3>
-                <input type="email" id="login-email" placeholder="Email" required>
-                <input type="password" id="login-senha" placeholder="Senha" required>
-                <button onclick="login()">Entrar</button>
-                <p id="login-error" class="error"></p>
-            </div>
-            
-            <!-- CADASTRO FORM -->
-            <div id="cadastro-form" class="form">
-                <h3>Criar Conta</h3>
-                <input type="text" id="cadastro-nome" placeholder="Nome completo" required>
-                <input type="email" id="cadastro-email" placeholder="Email" required>
-                <input type="password" id="cadastro-senha" placeholder="Senha (mínimo 6 caracteres)" required>
-                <button onclick="cadastrar()">Cadastrar</button>
-                <p id="cadastro-error" class="error"></p>
-                <p id="cadastro-success" class="success"></p>
+            <div class="auth-card">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="showTab('login')">Entrar</button>
+                    <button class="tab-btn" onclick="showTab('cadastro')">Criar conta</button>
+                </div>
+
+                <!-- LOGIN FORM -->
+                <div id="login-form" class="form active">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="login-email" placeholder="seu@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Senha</label>
+                        <input type="password" id="login-senha" placeholder="••••••••" required>
+                    </div>
+                    <button class="btn-main" onclick="login()">Entrar <span>→</span></button>
+                    <p id="login-error" class="error"></p>
+                </div>
+
+                <!-- CADASTRO FORM -->
+                <div id="cadastro-form" class="form">
+                    <div class="form-group">
+                        <label>Nome completo</label>
+                        <input type="text" id="cadastro-nome" placeholder="Seu nome" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="cadastro-email" placeholder="seu@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Senha <small>(mín. 6 caracteres)</small></label>
+                        <input type="password" id="cadastro-senha" placeholder="••••••••" required>
+                    </div>
+                    <button class="btn-main" onclick="cadastrar()">Criar conta <span>→</span></button>
+                    <p id="cadastro-error" class="error"></p>
+                    <p id="cadastro-success" class="success"></p>
+                </div>
             </div>
         </div>
 
-        <!-- ÁREA PRINCIPAL (APÓS LOGIN) -->
+        <!-- ÁREA PRINCIPAL -->
         <div id="main-area" class="main-area" style="display: none;">
-            <!-- PERFIL -->
-            <div class="perfil-card">
-                <h3>👤 Perfil</h3>
-                <p id="perfil-nome"></p>
-                <p id="perfil-email"></p>
-                <p id="perfil-nivel"></p>
-                <button onclick="logout()" class="logout-btn">Sair</button>
-            </div>
 
-            <!-- CONTEXTOS -->
-            <div class="contextos-card">
-                <h3>📋 Contextos Disponíveis</h3>
-                <select id="contexto-select">
-                    <option value="">Carregando...</option>
-                </select>
-                <button onclick="iniciarConversa()" class="btn-primary">Iniciar Conversa</button>
-            </div>
-
-            <!-- CONVERSA ATUAL -->
-            <div id="conversa-area" class="conversa-card" style="display: none;">
-                <h3>💬 Conversa Atual <span id="contexto-atual"></span></h3>
-                <div id="mensagens-container" class="mensagens"></div>
-                <div class="input-area">
-                    <input type="text" id="mensagem-input" placeholder="Digite sua mensagem..." onkeypress="if(event.key==='Enter') enviarMensagem()">
-                    <button onclick="enviarMensagem()">Enviar</button>
-                    <button onclick="finalizarConversa()" class="btn-secondary">Finalizar</button>
+            <!-- TOPBAR -->
+            <div class="topbar">
+                <div class="topbar-user">
+                    <div class="avatar" id="avatar-inicial">A</div>
+                    <div>
+                        <p id="perfil-nome" class="user-name"></p>
+                        <p id="perfil-nivel" class="user-level"></p>
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <p id="perfil-email" class="user-email"></p>
+                    <button onclick="logout()" class="logout-btn">Sair</button>
                 </div>
             </div>
 
-            <!-- FEEDBACK -->
-            <div id="feedback-area" class="feedback-card" style="display: none;">
-                <h3>📊 Feedback da Conversa</h3>
-                <p><strong>Pontos positivos:</strong> <span id="feedback-positivos"></span></p>
-                <p><strong>Pontos a melhorar:</strong> <span id="feedback-melhoria"></span></p>
-                <p><strong>Nota de fluência:</strong> <span id="feedback-nota"></span>/10</p>
-            </div>
+            <!-- GRID PRINCIPAL -->
+            <div class="main-grid">
 
-            <!-- HISTÓRICO -->
-            <div class="historico-card">
-                <h3>📜 Histórico de Conversas</h3>
-                <button onclick="carregarHistorico()" class="btn-secondary">Atualizar Histórico</button>
-                <div id="historico-container"></div>
+                <!-- COLUNA ESQUERDA -->
+                <div class="col-left">
+
+                    <!-- CONTEXTOS -->
+                    <div class="card contextos-card">
+                        <div class="card-header">
+                            <span class="card-icon">🌐</span>
+                            <h3>Nova conversa</h3>
+                        </div>
+                        <p class="card-desc">Escolha um cenário e pratique inglês em situações reais.</p>
+                        <select id="contexto-select">
+                            <option value="">Carregando contextos...</option>
+                        </select>
+                        <button onclick="iniciarConversa()" class="btn-main full">Iniciar conversa <span>→</span></button>
+                    </div>
+
+                    <!-- HISTÓRICO -->
+                    <div class="card historico-card">
+                        <div class="card-header">
+                            <span class="card-icon">📜</span>
+                            <h3>Histórico</h3>
+                            <button onclick="carregarHistorico()" class="btn-refresh">↻</button>
+                        </div>
+                        <div id="historico-container">
+                            <p class="empty-state">Nenhuma conversa ainda.</p>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- COLUNA DIREITA -->
+                <div class="col-right">
+
+                    <!-- CONVERSA -->
+                    <div id="conversa-area" class="card conversa-card" style="display: none;">
+                        <div class="card-header">
+                            <span class="card-icon">💬</span>
+                            <h3>Conversa <span id="contexto-atual" class="badge"></span></h3>
+                            <button onclick="finalizarConversa()" class="btn-finalizar">Finalizar</button>
+                        </div>
+                        <div id="mensagens-container" class="mensagens"></div>
+                        <div class="input-area">
+                            <input type="text" id="mensagem-input" placeholder="Escreva em inglês..." onkeypress="if(event.key==='Enter') enviarMensagem()">
+                            <button class="btn-send" onclick="enviarMensagem()">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- PLACEHOLDER QUANDO SEM CONVERSA -->
+                    <div id="empty-conversa" class="card empty-conversa-card">
+                        <div class="empty-illustration">🎙️</div>
+                        <h3>Pronto para praticar?</h3>
+                        <p>Escolha um contexto ao lado e comece a conversar com a IA em inglês.</p>
+                    </div>
+
+                    <!-- FEEDBACK -->
+                    <div id="feedback-area" class="card feedback-card" style="display: none;">
+                        <div class="card-header">
+                            <span class="card-icon">📊</span>
+                            <h3>Feedback</h3>
+                        </div>
+                        <div class="nota-badge">
+                            <span id="feedback-nota">–</span>
+                            <small>/10</small>
+                        </div>
+                        <div class="feedback-block positivo">
+                            <strong>✅ Pontos positivos</strong>
+                            <p id="feedback-positivos"></p>
+                        </div>
+                        <div class="feedback-block melhoria">
+                            <strong>💡 A melhorar</strong>
+                            <p id="feedback-melhoria"></p>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </div>
     </div>

@@ -113,9 +113,11 @@ async function carregarPerfil() {
         const data = await response.json();
         
         if (response.ok) {
-            document.getElementById('perfil-nome').textContent = `Nome: ${data.nome}`;
-            document.getElementById('perfil-email').textContent = `Email: ${data.email}`;
-            document.getElementById('perfil-nivel').textContent = `Nível: ${data.nivel || 'iniciante'}`;
+            document.getElementById('perfil-nome').textContent = data.nome;
+            document.getElementById('perfil-email').textContent = data.email;
+            document.getElementById('perfil-nivel').textContent = data.nivel || 'iniciante';
+            const avatar = document.getElementById('avatar-inicial');
+            if (avatar) avatar.textContent = data.nome.charAt(0).toUpperCase();
         }
     } catch (error) {
         console.error('Erro ao carregar perfil:', error);
@@ -171,9 +173,10 @@ async function iniciarConversa() {
         
         if (response.ok) {
             conversaAtualId = data.conversa_id;
-            document.getElementById('conversa-area').style.display = 'block';
+            document.getElementById('conversa-area').style.display = 'flex';
             document.getElementById('feedback-area').style.display = 'none';
-            document.getElementById('contexto-atual').textContent = `(${contexto})`;
+            document.getElementById('empty-conversa').style.display = 'none';
+            document.getElementById('contexto-atual').textContent = contexto;
             
             document.getElementById('mensagens-container').innerHTML = '';
             adicionarMensagem('ia', data.mensagem_inicial);
@@ -251,6 +254,7 @@ async function finalizarConversa() {
             document.getElementById('feedback-nota').textContent = data.feedback.nota_fluencia;
             
             document.getElementById('conversa-area').style.display = 'none';
+            document.getElementById('empty-conversa').style.display = 'none';
             
             carregarHistorico();
             conversaAtualId = null;
