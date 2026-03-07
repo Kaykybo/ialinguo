@@ -78,11 +78,9 @@ async function login() {
             token = data.access_token;
             localStorage.setItem('token', token);
             
-            // Mostrar área principal
             document.getElementById('auth-area').style.display = 'none';
             document.getElementById('main-area').style.display = 'block';
             
-            // Carregar dados
             carregarPerfil();
             carregarContextos();
             carregarHistorico();
@@ -126,7 +124,7 @@ async function carregarPerfil() {
 
 async function carregarContextos() {
     try {
-        const response = await fetch(`${API_URL}/contextos`, {
+        const response = await fetch(`${API_URL}/conversas/contextos`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -177,10 +175,7 @@ async function iniciarConversa() {
             document.getElementById('feedback-area').style.display = 'none';
             document.getElementById('contexto-atual').textContent = `(${contexto})`;
             
-            // Limpar mensagens
             document.getElementById('mensagens-container').innerHTML = '';
-            
-            // Adicionar mensagem inicial
             adicionarMensagem('ia', data.mensagem_inicial);
         } else {
             alert(data.erro || 'Erro ao iniciar conversa');
@@ -201,10 +196,7 @@ async function enviarMensagem() {
     
     if (!mensagem) return;
     
-    // Limpar input
     input.value = '';
-    
-    // Mostrar mensagem do aluno
     adicionarMensagem('aluno', mensagem);
     
     try {
@@ -253,18 +245,14 @@ async function finalizarConversa() {
         const data = await response.json();
         
         if (response.ok) {
-            // Mostrar feedback
             document.getElementById('feedback-area').style.display = 'block';
             document.getElementById('feedback-positivos').textContent = data.feedback.pontos_positivos;
             document.getElementById('feedback-melhoria').textContent = data.feedback.pontos_melhoria;
             document.getElementById('feedback-nota').textContent = data.feedback.nota_fluencia;
             
-            // Esconder área de conversa
             document.getElementById('conversa-area').style.display = 'none';
             
-            // Atualizar histórico
             carregarHistorico();
-            
             conversaAtualId = null;
         }
     } catch (error) {
@@ -323,7 +311,6 @@ async function verDetalhesConversa(conversaId) {
         const data = await response.json();
         
         if (response.ok) {
-            // Criar modal simples com detalhes
             let mensagens = '';
             data.mensagens.forEach(m => {
                 mensagens += `${m.remetente === 'aluno' ? '👤' : '🤖'} ${m.texto}\n`;
@@ -339,7 +326,6 @@ async function verDetalhesConversa(conversaId) {
 // ========== VERIFICAR SE JÁ ESTÁ LOGADO ==========
 
 if (token) {
-    // Tentar carregar perfil para ver se token ainda é válido
     fetch(`${API_URL}/auth/me`, {
         headers: {
             'Authorization': `Bearer ${token}`
