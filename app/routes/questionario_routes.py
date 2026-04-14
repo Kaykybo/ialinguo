@@ -1,7 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app import db
-from app.models import Questionario
+from app.db_queries import salvar_questionario, listar_questionarios_aluno
 
 questionario_bp = Blueprint('questionario', __name__)
 
@@ -19,9 +18,7 @@ def salvar_questionario():
         titulo = dados.get('titulo', 'Questionário de Nivelamento')
         respostas = dados.get('respostas', {})
 
-        novo_questionario = Questionario(aluno_id=aluno_id, titulo=titulo, respostas=respostas)
-        db.session.add(novo_questionario)
-        db.session.commit()
+        novo_questionario = salvar_questionario(aluno_id, titulo, respostas)
 
         return jsonify({
             'mensagem': 'Questionário salvo com sucesso',
@@ -39,9 +36,7 @@ def listar_questionarios():
     try:
         aluno_id = int(get_jwt_identity())
 
-        questionarios = Questionario.query.filter_by(aluno_id=aluno_id)\
-            .order_by(Questionario.data_preenchimento.desc())\
-            .all()
+        questionarios = listar_questionarios_aluno(aluno_id)
 
         return jsonify({'questionarios': [q.to_dict() for q in questionarios]}), 200
 

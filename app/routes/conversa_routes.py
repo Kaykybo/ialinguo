@@ -1,7 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
-from app.models import Conversa, Mensagem, Feedback
+from app.db_queries import (iniciar_conversa as criar_conversa, buscar_conversa_ativa,
+                            adicionar_mensagem, criar_feedback, finalizar_conversa as finalizar_conversa_db)
 from app.services import AIService
 from datetime import datetime
 
@@ -26,7 +27,7 @@ def listar_contextos():
 
 @conversa_bp.route('/iniciar', methods=['POST'])
 @jwt_required()
-def iniciar_conversa():
+def iniciar_conversa_route():
     try:
         aluno_id = int(get_jwt_identity())
         dados = request.get_json() or {}
@@ -35,15 +36,10 @@ def iniciar_conversa():
         if contexto not in AIService.CONTEXTOS:
             contexto = 'conversa livre'
 
-        nova_conversa = Conversa(aluno_id=aluno_id, contexto=contexto, status='ativa')
-        db.session.add(nova_conversa)
-        db.session.commit()
+        nova_conversa = criar_conversa(aluno_id, contexto)
 
-        msg_inicial = f"Hello! I'm your AI assistant. Let's practice English in a {contexto} context. How can I help you today?"
-
-        mensagem_ia = Mensagem(conversa_id=nova_conversa.id, remetente='ia', texto=msg_inicial)
-        db.session.add(mensagem_ia)
-        db.session.commit()
+        msg_inicial = f"Hello! I'm your English practice partner. We will speak only in English in a {contexto} context. If you use Portuguese or any other language, I will remind you and this will lower your fluency score. How can I help you today?"
+        adicionar_mensagem(nova_conversa.id, 'ia', msg_inicial)
 
         return jsonify({
             'conversa_id': nova_conversa.id,
@@ -69,11 +65,7 @@ def enviar_mensagem(conversa_id):
         mensagem_texto = dados.get('mensagem')
         tipo = dados.get('tipo', 'texto')
 
-        conversa = Conversa.query.filter_by(
-            id=conversa_id,
-            aluno_id=aluno_id,
-            status='ativa'
-        ).first()
+        conversa = buscar_conversa_ativa(conversa_id, aluno_id)
 
         if not conversa:
             return jsonify({'erro': 'Conversa não encontrada ou já finalizada'}), 404
@@ -81,8 +73,7 @@ def enviar_mensagem(conversa_id):
         if not mensagem_texto:
             return jsonify({'erro': 'Mensagem vazia'}), 400
 
-        msg_aluno = Mensagem(conversa_id=conversa.id, remetente='aluno', texto=mensagem_texto, tipo=tipo)
-        db.session.add(msg_aluno)
+        msg_aluno = adicionar_mensagem(conversa.id, 'aluno', mensagem_texto, tipo)
 
         historico_lista = conversa.get_historico_lista(limite=10)
 
@@ -92,9 +83,7 @@ def enviar_mensagem(conversa_id):
             historico=historico_lista
         )
 
-        msg_ia = Mensagem(conversa_id=conversa.id, remetente='ia', texto=resposta_ia)
-        db.session.add(msg_ia)
-        db.session.commit()
+        msg_ia = adicionar_mensagem(conversa.id, 'ia', resposta_ia)
 
         return jsonify({
             'resposta': resposta_ia,
@@ -112,11 +101,7 @@ def finalizar_conversa(conversa_id):
     try:
         aluno_id = int(get_jwt_identity())
 
-        conversa = Conversa.query.filter_by(
-            id=conversa_id,
-            aluno_id=aluno_id,
-            status='ativa'
-        ).first()
+        conversa = buscar_conversa_ativa(conversa_id, aluno_id)
 
         if not conversa:
             return jsonify({'erro': 'Conversa não encontrada'}), 404
@@ -124,17 +109,28 @@ def finalizar_conversa(conversa_id):
         texto_conversa = conversa.get_texto_completo()
         feedback_data = _ai_service.gerar_feedback(texto_conversa, conversa.contexto)
 
-        novo_feedback = Feedback(
+        # Formatar pontos positivos e melhorias como strings
+        pontos_positivos = feedback_data.get('pontos_positivos', '')
+        pontos_melhoria = feedback_data.get('pontos_melhoria', '')
+
+        if isinstance(pontos_positivos, dict):
+            pontos_positivos = '\n'.join([f"{k}: {v}" for k, v in pontos_positivos.items()])
+        elif isinstance(pontos_positivos, list):
+            pontos_positivos = '\n'.join(pontos_positivos)
+
+        if isinstance(pontos_melhoria, dict):
+            pontos_melhoria = '\n'.join([f"{k}: {v}" for k, v in pontos_melhoria.items()])
+        elif isinstance(pontos_melhoria, list):
+            pontos_melhoria = '\n'.join(pontos_melhoria)
+
+        novo_feedback = criar_feedback(
             conversa_id=conversa.id,
-            pontos_positivos=feedback_data.get('pontos_positivos', ''),
-            pontos_melhoria=feedback_data.get('pontos_melhoria', ''),
+            pontos_positivos=pontos_positivos,
+            pontos_melhoria=pontos_melhoria,
             nota_fluencia=feedback_data.get('nota_fluencia', 5)
         )
 
-        conversa.finalizar()
-
-        db.session.add(novo_feedback)
-        db.session.commit()
+        finalizar_conversa_db(conversa)
 
         return jsonify({
             'mensagem': 'Conversa finalizada com sucesso',

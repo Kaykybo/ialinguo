@@ -1,7 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from app import db
-from app.models import Aluno
+from app.db_queries import buscar_aluno_por_email, buscar_aluno_por_id, cadastrar_aluno
 from datetime import timedelta
 
 auth_bp = Blueprint('auth', __name__)
@@ -31,14 +30,10 @@ def cadastrar():
         if not senha or len(senha) < 6:
             return jsonify({'erro': 'Senha deve ter 6+ caracteres'}), 400
 
-        if Aluno.query.filter_by(email=email).first():
+        if buscar_aluno_por_email(email):
             return jsonify({'erro': 'Email já cadastrado'}), 409
 
-        novo_aluno = Aluno(nome_completo=nome, email=email)
-        novo_aluno.set_senha(senha)
-
-        db.session.add(novo_aluno)
-        db.session.commit()
+        novo_aluno = cadastrar_aluno(nome, email, senha)
 
         return jsonify({
             'mensagem': 'Cadastro realizado!',
@@ -58,7 +53,7 @@ def login():
         email = dados.get('email')
         senha = dados.get('senha')
 
-        aluno = Aluno.query.filter_by(email=email).first()
+        aluno = buscar_aluno_por_email(email)
 
         if not aluno or not aluno.check_senha(senha):
             return jsonify({'erro': 'Email ou senha inválidos'}), 401
@@ -86,7 +81,7 @@ def login():
 def perfil():
     try:
         aluno_id = int(get_jwt_identity())
-        aluno = Aluno.query.get(aluno_id)
+        aluno = buscar_aluno_por_id(aluno_id)
 
         if not aluno:
             return jsonify({'erro': 'Usuário não encontrado'}), 404

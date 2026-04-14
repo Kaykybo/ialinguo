@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import Conversa, Mensagem, Feedback
+from app.db_queries import (listar_conversas_aluno, buscar_conversa_por_id,
+                            listar_mensagens_conversa, buscar_feedback_conversa)
 
 historico_bp = Blueprint('historico', __name__)
 
@@ -11,9 +12,7 @@ def listar_historico_conversas():
     try:
         aluno_id = int(get_jwt_identity())
 
-        conversas = Conversa.query.filter_by(aluno_id=aluno_id)\
-            .order_by(Conversa.data_inicio.desc())\
-            .all()
+        conversas = listar_conversas_aluno(aluno_id)
 
         return jsonify({'historico': [c.to_dict() for c in conversas]}), 200
 
@@ -27,16 +26,14 @@ def detalhes_conversa(conversa_id):
     try:
         aluno_id = int(get_jwt_identity())
 
-        conversa = Conversa.query.filter_by(id=conversa_id, aluno_id=aluno_id).first()
+        conversa = buscar_conversa_por_id(conversa_id, aluno_id)
 
         if not conversa:
             return jsonify({'erro': 'Conversa não encontrada'}), 404
 
-        mensagens = Mensagem.query.filter_by(conversa_id=conversa.id)\
-            .order_by(Mensagem.timestamp.asc())\
-            .all()
+        mensagens = listar_mensagens_conversa(conversa.id)
 
-        feedback = Feedback.query.filter_by(conversa_id=conversa.id).first()
+        feedback = buscar_feedback_conversa(conversa.id)
 
         return jsonify({
             'conversa': {
