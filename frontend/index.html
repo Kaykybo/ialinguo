@@ -44,8 +44,8 @@
                         <label>Senha</label>
                         <input type="password" id="login-senha" placeholder="••••••••" required>
                     </div>
-                    <button class="btn-main" onclick="login()">Entrar <span>→</span></button>
-                    <p id="login-error" class="error"></p>
+                    <button type="button" class="btn-main" onclick="login()">Entrar <span>→</span></button>
+                    <p id="login-error" class="error" aria-live="polite"></p>
                 </div>
 
                 <!-- CADASTRO FORM -->
@@ -62,9 +62,9 @@
                         <label>Senha <small>(mín. 6 caracteres)</small></label>
                         <input type="password" id="cadastro-senha" placeholder="••••••••" required>
                     </div>
-                    <button class="btn-main" onclick="cadastrar()">Criar conta <span>→</span></button>
-                    <p id="cadastro-error" class="error"></p>
-                    <p id="cadastro-success" class="success"></p>
+                    <button type="button" class="btn-main" onclick="cadastrar()">Criar conta <span>→</span></button>
+                    <p id="cadastro-error" class="error" aria-live="polite"></p>
+                    <p id="cadastro-success" class="success" aria-live="polite"></p>
                 </div>
             </div>
         </div>
@@ -103,7 +103,7 @@
                         <select id="contexto-select">
                             <option value="">Carregando contextos...</option>
                         </select>
-                        <button onclick="iniciarConversa()" class="btn-main full">Iniciar conversa <span>→</span></button>
+                        <button type="button" onclick="iniciarConversa()" class="btn-main full">Iniciar conversa <span>→</span></button>
                     </div>
 
                     <!-- HISTÓRICO -->
@@ -111,8 +111,9 @@
                         <div class="card-header">
                             <span class="card-icon">📜</span>
                             <h3>Histórico</h3>
-                            <button onclick="carregarHistorico()" class="btn-refresh">↻</button>
+                            <button type="button" onclick="carregarHistorico()" class="btn-refresh">↻</button>
                         </div>
+                        <div id="historico-summary" class="historico-summary"></div>
                         <div id="historico-container">
                             <p class="empty-state">Nenhuma conversa ainda.</p>
                         </div>
@@ -128,12 +129,15 @@
                         <div class="card-header">
                             <span class="card-icon">💬</span>
                             <h3>Conversa <span id="contexto-atual" class="badge"></span></h3>
-                            <button onclick="finalizarConversa()" class="btn-finalizar">Finalizar</button>
+                            <button type="button" onclick="finalizarConversa()" class="btn-finalizar">Finalizar</button>
                         </div>
                         <div id="mensagens-container" class="mensagens"></div>
                         <div class="input-area">
                             <input type="text" id="mensagem-input" placeholder="Escreva em inglês..." onkeypress="if(event.key==='Enter') enviarMensagem()">
-                            <button class="btn-send" onclick="enviarMensagem()">
+                            <button type="button" id="mic-button" class="btn-mic" onclick="toggleListening()" title="Falar">
+                                <span>🎤</span>
+                            </button>
+                            <button type="button" class="btn-send" onclick="enviarMensagem()">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                             </button>
                         </div>
@@ -168,6 +172,18 @@
 
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+    <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modal-title">Detalhes da conversa</h3>
+                <button type="button" class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div id="modal-body" class="modal-body"></div>
         </div>
     </div>
 

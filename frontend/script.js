@@ -4,6 +4,225 @@ const API_URL = 'http://localhost:5000/api';
 // Estado da aplicação
 let token = localStorage.getItem('token');
 let conversaAtualId = null;
+let recognition = null;
+let isListening = false;
+
+const apiRequest = async (path, options = {}) => {
+    const headers = {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+    };
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_URL}${path}`, {
+        ...options,
+        headers
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        throw data;
+    }
+
+    return data;
+};
+
+const setLoading = (button, loading) => {
+    if (!button) return;
+
+    const isSendButton = button.classList.contains('btn-send');
+    if (loading) {
+        button.dataset.originalText = button.dataset.originalText || button.innerHTML;
+        if (!isSendButton) {
+            button.innerHTML = 'Carregando...';
+        }
+        button.disabled = true;
+        button.classList.add('btn-loading');
+    } else {
+        if (!isSendButton) {
+            button.innerHTML = button.dataset.originalText || button.innerHTML;
+        }
+        button.disabled = false;
+        button.classList.remove('btn-loading');
+    }
+};
+
+const showToast = (message, type = 'error') => {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 4500);
+};
+
+const speakText = (text) => {
+    if (!('speechSynthesis' in window) || !text) return;
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+
+    // Try to find an American English voice
+    const voices = window.speechSynthesis.getVoices();
+    const americanVoice = voices.find(voice =>
+        voice.lang.startsWith('en-US') &&
+        (voice.name.toLowerCase().includes('female') ||
+         voice.name.toLowerCase().includes('male') ||
+         voice.name.toLowerCase().includes('samantha') ||
+         voice.name.toLowerCase().includes('alex'))
+    );
+
+    if (americanVoice) {
+        utterance.voice = americanVoice;
+    }
+
+    utterance.rate = 0.9; // Slightly slower for clarity
+    utterance.pitch = 1.1; // Slightly higher pitch for more natural sound
+    utterance.volume = 1.0;
+
+    window.speechSynthesis.speak(utterance);
+};
+
+// Ensure voices are loaded before trying to use them
+if ('speechSynthesis' in window) {
+    window.speechSynthesis.onvoiceschanged = () => {
+        // Voices are now available
+    };
+}
+
+const initVoiceRecognition = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        return;
+    }
+
+    recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = true; // Allow interim results for better UX
+    recognition.maxAlternatives = 1;
+    recognition.continuous = true; // Keep listening until manually stopped
+
+    recognition.onresult = (event) => {
+        let finalTranscript = '';
+        let interimTranscript = '';
+
+        // Process all results
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+                finalTranscript += transcript;
+            } else {
+                interimTranscript += transcript;
+            }
+        }
+
+        const input = document.getElementById('mensagem-input');
+        if (input) {
+            if (finalTranscript) {
+                // Append final results
+                const currentText = input.value.trim();
+                input.value = currentText ? `${currentText} ${finalTranscript.trim()}` : finalTranscript.trim();
+                // Don't show toast for each recognition, just accumulate
+            }
+            // Interim results could be shown differently if needed
+        }
+    };
+
+    recognition.onerror = (event) => {
+        const errorMessage = event.error === 'not-allowed'
+            ? 'Permissão para microfone negada'
+            : `Erro de voz: ${event.error}`;
+        showToast(errorMessage, 'error');
+        stopListening();
+    };
+
+    recognition.onend = () => {
+        // Don't automatically stop - only stop when user clicks
+        // This prevents automatic stopping after silence
+    };
+};
+
+const updateMicButton = () => {
+    const button = document.getElementById('mic-button');
+    if (!button) return;
+    button.classList.toggle('listening', isListening);
+};
+
+const startListening = () => {
+    if (!recognition) {
+        showToast('Reconhecimento de voz não suportado neste navegador.', 'error');
+        return;
+    }
+    try {
+        recognition.start();
+        isListening = true;
+        updateMicButton();
+        showToast('🎤 Gravando... Clique novamente para enviar!', 'info');
+    } catch (error) {
+        showToast('Não foi possível ativar o microfone.', 'error');
+    }
+};
+
+const stopListening = () => {
+    if (!recognition) return;
+    try {
+        recognition.stop();
+    } catch (error) {
+        // Ignore errors when stopping
+    }
+    isListening = false;
+    updateMicButton();
+};
+
+const toggleListening = () => {
+    if (isListening) {
+        stopListening();
+        // Auto-send the message when stopping recording
+        const input = document.getElementById('mensagem-input');
+        if (input && input.value.trim()) {
+            enviarMensagem();
+        } else {
+            showToast('Nenhuma mensagem para enviar.', 'warning');
+        }
+    } else {
+        startListening();
+    }
+};
+
+const openModal = (contentHtml, title = 'Detalhes da conversa') => {
+    const overlay = document.getElementById('modal-overlay');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+
+    if (!overlay || !modalBody || !modalTitle) return;
+
+    modalTitle.textContent = title;
+    modalBody.innerHTML = contentHtml;
+    overlay.classList.remove('hidden');
+};
+
+const closeModal = () => {
+    const overlay = document.getElementById('modal-overlay');
+    if (overlay) overlay.classList.add('hidden');
+};
+
+const formatTime = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+        closeModal();
+    }
+});
 
 // ========== FUNÇÕES DE AUTENTICAÇÃO ==========
 
@@ -27,32 +246,30 @@ async function cadastrar() {
     
     const errorEl = document.getElementById('cadastro-error');
     const successEl = document.getElementById('cadastro-success');
+    const button = document.querySelector('#cadastro-form .btn-main');
     
     errorEl.textContent = '';
     successEl.textContent = '';
-    
+    setLoading(button, true);
+
     try {
-        const response = await fetch(`${API_URL}/auth/cadastrar`, {
+        await apiRequest('/auth/cadastrar', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify({ nome, email, senha })
         });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            successEl.textContent = 'Cadastro realizado! Faça login.';
-            document.getElementById('cadastro-nome').value = '';
-            document.getElementById('cadastro-email').value = '';
-            document.getElementById('cadastro-senha').value = '';
-            showTab('login');
-        } else {
-            errorEl.textContent = data.erro || 'Erro ao cadastrar';
-        }
+
+        successEl.textContent = 'Cadastro realizado! Faça login.';
+        showToast('Cadastro realizado! Faça login.', 'success');
+        document.getElementById('cadastro-nome').value = '';
+        document.getElementById('cadastro-email').value = '';
+        document.getElementById('cadastro-senha').value = '';
+        showTab('login');
     } catch (error) {
-        errorEl.textContent = 'Erro de conexão';
+        const message = error?.erro || 'Erro ao cadastrar';
+        errorEl.textContent = message;
+        showToast(message, 'error');
+    } finally {
+        setLoading(button, false);
     }
 }
 
@@ -61,34 +278,31 @@ async function login() {
     const senha = document.getElementById('login-senha').value;
     
     const errorEl = document.getElementById('login-error');
+    const button = document.querySelector('#login-form .btn-main');
     errorEl.textContent = '';
-    
+    setLoading(button, true);
+
     try {
-        const response = await fetch(`${API_URL}/auth/login`, {
+        const data = await apiRequest('/auth/login', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify({ email, senha })
         });
+
+        token = data.access_token;
+        localStorage.setItem('token', token);
         
-        const data = await response.json();
+        document.getElementById('auth-area').style.display = 'none';
+        document.getElementById('main-area').style.display = 'block';
         
-        if (response.ok) {
-            token = data.access_token;
-            localStorage.setItem('token', token);
-            
-            document.getElementById('auth-area').style.display = 'none';
-            document.getElementById('main-area').style.display = 'block';
-            
-            carregarPerfil();
-            carregarContextos();
-            carregarHistorico();
-        } else {
-            errorEl.textContent = data.erro || 'Erro ao fazer login';
-        }
+        carregarPerfil();
+        carregarContextos();
+        carregarHistorico();
     } catch (error) {
-        errorEl.textContent = 'Erro de conexão';
+        const message = error?.erro || 'Erro ao fazer login';
+        errorEl.textContent = message;
+        showToast(message, 'error');
+    } finally {
+        setLoading(button, false);
     }
 }
 
@@ -159,171 +373,220 @@ async function iniciarConversa() {
         return;
     }
     
+    const button = document.querySelector('.contextos-card .btn-main');
+    setLoading(button, true);
+
     try {
-        const response = await fetch(`${API_URL}/conversas/iniciar`, {
+        const data = await apiRequest('/conversas/iniciar', {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify({ contexto })
         });
+
+        conversaAtualId = data.conversa_id;
+        document.getElementById('conversa-area').style.display = 'flex';
+        document.getElementById('feedback-area').style.display = 'none';
+        document.getElementById('empty-conversa').style.display = 'none';
+        document.getElementById('contexto-atual').textContent = contexto;
         
-        const data = await response.json();
-        
-        if (response.ok) {
-            conversaAtualId = data.conversa_id;
-            document.getElementById('conversa-area').style.display = 'flex';
-            document.getElementById('feedback-area').style.display = 'none';
-            document.getElementById('empty-conversa').style.display = 'none';
-            document.getElementById('contexto-atual').textContent = contexto;
-            
-            document.getElementById('mensagens-container').innerHTML = '';
-            adicionarMensagem('ia', data.mensagem_inicial);
-        } else {
-            alert(data.erro || 'Erro ao iniciar conversa');
-        }
+        document.getElementById('mensagens-container').innerHTML = '';
+        adicionarMensagem('ia', data.mensagem_inicial, 'ia');
     } catch (error) {
-        console.error('Erro ao iniciar conversa:', error);
+        const message = error?.erro || 'Erro ao iniciar conversa';
+        showToast(message, 'error');
+    } finally {
+        setLoading(button, false);
     }
 }
 
 async function enviarMensagem() {
     if (!conversaAtualId) {
-        alert('Inicie uma conversa primeiro!');
+        showToast('Inicie uma conversa primeiro!', 'error');
         return;
     }
     
     const input = document.getElementById('mensagem-input');
     const mensagem = input.value.trim();
+    const button = document.querySelector('.btn-send');
     
     if (!mensagem) return;
     
     input.value = '';
-    adicionarMensagem('aluno', mensagem);
+    adicionarMensagem('aluno', mensagem, 'aluno');
+    setLoading(button, true);
     
     try {
-        const response = await fetch(`${API_URL}/conversas/${conversaAtualId}/enviar`, {
+        const data = await apiRequest(`/conversas/${conversaAtualId}/enviar`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify({ mensagem, tipo: 'texto' })
         });
         
-        const data = await response.json();
-        
-        if (response.ok) {
-            adicionarMensagem('ia', data.resposta);
-        } else {
-            adicionarMensagem('ia', 'Erro ao obter resposta');
-        }
+        adicionarMensagem('ia', data.resposta, 'ia');
     } catch (error) {
-        console.error('Erro ao enviar mensagem:', error);
-        adicionarMensagem('ia', 'Erro de conexão');
+        const message = error?.erro || 'Erro ao enviar mensagem';
+        showToast(message, 'error');
+        adicionarMensagem('ia', message, 'ia');
+    } finally {
+        setLoading(button, false);
     }
 }
 
-function adicionarMensagem(remetente, texto) {
+function adicionarMensagem(remetente, texto, tipo = 'texto') {
     const container = document.getElementById('mensagens-container');
     const msgDiv = document.createElement('div');
+    const timestamp = formatTime();
+
     msgDiv.className = `mensagem ${remetente}`;
-    msgDiv.textContent = texto;
+    msgDiv.innerHTML = `
+        <div>${texto}</div>
+        <small>${timestamp}</small>
+    `;
+
     container.appendChild(msgDiv);
     container.scrollTop = container.scrollHeight;
+    if (remetente === 'ia') {
+        speakText(texto);
+    }
 }
+
+window.addEventListener('DOMContentLoaded', initVoiceRecognition);
 
 async function finalizarConversa() {
     if (!conversaAtualId) return;
-    
+    const button = document.querySelector('.btn-finalizar');
+    setLoading(button, true);
+
     try {
-        const response = await fetch(`${API_URL}/conversas/${conversaAtualId}/finalizar`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+        const data = await apiRequest(`/conversas/${conversaAtualId}/finalizar`, {
+            method: 'POST'
         });
+
+        document.getElementById('feedback-area').style.display = 'block';
+        document.getElementById('feedback-positivos').textContent = data.feedback.pontos_positivos;
+        document.getElementById('feedback-melhoria').textContent = data.feedback.pontos_melhoria;
+        document.getElementById('feedback-nota').textContent = data.feedback.nota_fluencia;
         
-        const data = await response.json();
+        document.getElementById('conversa-area').style.display = 'none';
+        document.getElementById('empty-conversa').style.display = 'none';
         
-        if (response.ok) {
-            document.getElementById('feedback-area').style.display = 'block';
-            document.getElementById('feedback-positivos').textContent = data.feedback.pontos_positivos;
-            document.getElementById('feedback-melhoria').textContent = data.feedback.pontos_melhoria;
-            document.getElementById('feedback-nota').textContent = data.feedback.nota_fluencia;
-            
-            document.getElementById('conversa-area').style.display = 'none';
-            document.getElementById('empty-conversa').style.display = 'none';
-            
-            carregarHistorico();
-            conversaAtualId = null;
-        }
+        carregarHistorico();
+        conversaAtualId = null;
+        showToast('Conversa finalizada com sucesso', 'success');
     } catch (error) {
-        console.error('Erro ao finalizar conversa:', error);
+        const message = error?.erro || 'Erro ao finalizar conversa';
+        showToast(message, 'error');
+    } finally {
+        setLoading(button, false);
     }
 }
 
 async function carregarHistorico() {
     try {
-        const response = await fetch(`${API_URL}/historico/conversas`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            const container = document.getElementById('historico-container');
-            container.innerHTML = '';
-            
-            if (data.historico.length === 0) {
-                container.innerHTML = '<p>Nenhuma conversa ainda.</p>';
-                return;
-            }
-            
-            data.historico.forEach(conv => {
-                const div = document.createElement('div');
-                div.className = 'historico-item';
-                div.onclick = () => verDetalhesConversa(conv.conversa_id);
-                
-                const dataInicio = new Date(conv.data_inicio).toLocaleString();
-                
-                div.innerHTML = `
-                    <strong>${conv.contexto}</strong><br>
-                    <small>${dataInicio}</small><br>
-                    <small>Nota: ${conv.feedback?.nota_fluencia || 'N/A'}/10</small>
-                `;
-                
-                container.appendChild(div);
-            });
+        const data = await apiRequest('/historico/conversas');
+        const container = document.getElementById('historico-container');
+        const summary = document.getElementById('historico-summary');
+
+        container.innerHTML = '';
+        summary.innerHTML = '';
+
+        const total = data.historico.length;
+
+        if (total === 0) {
+            container.innerHTML = '<p class="empty-state">Nenhuma conversa finalizada ainda.</p>';
+            return;
         }
+
+        summary.innerHTML = `
+            <div class="historico-meta">
+                <div>
+                    <strong>${total}</strong>
+                    <span>conversas finalizadas</span>
+                </div>
+            </div>
+        `;
+
+        data.historico.forEach(conv => {
+            const div = document.createElement('div');
+            div.className = 'historico-item';
+            div.onclick = () => verDetalhesConversa(conv.conversa_id);
+
+            const dataInicio = new Date(conv.data_inicio).toLocaleString();
+            const statusLabel = 'Finalizada';
+            const score = conv.feedback?.nota_fluencia || '–';
+
+            div.innerHTML = `
+                <div class="historico-item-main">
+                    <div class="historico-item-title">
+                        <strong>${conv.contexto}</strong>
+                        <span class="historico-status finalizada">${statusLabel}</span>
+                    </div>
+                    <div class="historico-item-meta">
+                        <span>${dataInicio}</span>
+                        <span class="historico-badge">Nota ${score}/10</span>
+                    </div>
+                </div>
+                <div class="historico-item-actions">
+                    <button type="button" class="btn-sm">Ver</button>
+                </div>
+            `;
+
+            container.appendChild(div);
+        });
     } catch (error) {
         console.error('Erro ao carregar histórico:', error);
+        showToast('Erro ao carregar histórico', 'error');
     }
 }
 
 async function verDetalhesConversa(conversaId) {
     try {
-        const response = await fetch(`${API_URL}/historico/conversas/${conversaId}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            let mensagens = '';
-            data.mensagens.forEach(m => {
-                mensagens += `${m.remetente === 'aluno' ? '👤' : '🤖'} ${m.texto}\n`;
-            });
-            
-            alert(`CONVERSA: ${data.conversa.contexto}\n\n${mensagens}\n\nFEEDBACK:\nPositivos: ${data.feedback?.pontos_positivos}\nMelhorar: ${data.feedback?.pontos_melhoria}\nNota: ${data.feedback?.nota_fluencia}/10`);
-        }
+        const data = await apiRequest(`/historico/conversas/${conversaId}`);
+
+        const mensagensHtml = data.mensagens.map(m => {
+            const isAluno = m.remetente === 'aluno';
+            const label = isAluno ? 'Você' : 'IA';
+            const classe = isAluno ? 'mensagem-aluno' : 'mensagem-ia';
+            const timestamp = new Date(m.timestamp).toLocaleString();
+            return `
+                <div class="mensagem ${classe}">
+                    <div class="mensagem-header">
+                        <strong>${label}</strong>
+                        <small>${timestamp}</small>
+                    </div>
+                    <div class="mensagem-texto">${m.texto}</div>
+                </div>
+            `;
+        }).join('');
+
+        const feedback = data.feedback || {};
+        const dataFim = data.conversa.data_fim ? new Date(data.conversa.data_fim).toLocaleString() : 'Em andamento';
+        const content = `
+            <div class="conversa-detalhes">
+                <div class="conversa-info">
+                    <h3>Informações da Conversa</h3>
+                    <p><strong>Contexto:</strong> ${data.conversa.contexto}</p>
+                    <p><strong>Início:</strong> ${new Date(data.conversa.data_inicio).toLocaleString()}</p>
+                    <p><strong>Fim:</strong> ${dataFim}</p>
+                    <p><strong>Status:</strong> ${data.conversa.status}</p>
+                </div>
+                <hr>
+                <div class="mensagens-container">
+                    <h3>Mensagens</h3>
+                    ${mensagensHtml}
+                </div>
+                <hr>
+                <div class="feedback-container">
+                    <h3>Feedback</h3>
+                    <p><strong>Pontos positivos:</strong> ${feedback.pontos_positivos || 'N/A'}</p>
+                    <p><strong>A melhorar:</strong> ${feedback.pontos_melhoria || 'N/A'}</p>
+                    <p><strong>Nota de Fluência:</strong> ${feedback.nota_fluencia || 'N/A'}/10</p>
+                </div>
+            </div>
+        `;
+
+        openModal(content, `Detalhes da Conversa: ${data.conversa.contexto}`);
     } catch (error) {
-        console.error('Erro ao carregar detalhes:', error);
+        const message = error?.erro || 'Erro ao carregar detalhes';
+        showToast(message, 'error');
     }
 }
 
